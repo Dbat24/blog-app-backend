@@ -1,19 +1,30 @@
-import fs from "fs";
 import path from "path";
 import admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
-import "dotenv/config";
+import "dotenv/config"; // Load environment variables
 import { db, connectToDb } from "./db.js";
-
 import { fileURLToPath } from "url";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const credentials = JSON.parse(fs.readFileSync("./credentials.json"));
+// Initialize Firebase Admin SDK using environment variables
 admin.initializeApp({
-  credential: admin.credential.cert(credentials),
+  credential: admin.credential.cert({
+    type: "service_account",
+    project_id: process.env.PROJECT_ID,
+    private_key_id: process.env.PRIVATE_KEY_ID,
+    private_key: process.env.PRIVATE_KEY.replace(/\\n/g, "\n"), // Handle newline characters
+    client_email: process.env.CLIENT_EMAIL,
+    client_id: process.env.CLIENT_ID,
+    auth_uri: process.env.AUTH_URI,
+    token_uri: process.env.TOKEN_URI,
+    auth_provider_x509_cert_url: process.env.AUTH_PROVIDER_X509_CERT_URL,
+    client_x509_cert_url: process.env.CLIENT_X509_CERT_URL,
+  }),
 });
+
 const app = express();
 app.use(cors());
 app.use(express.json());
