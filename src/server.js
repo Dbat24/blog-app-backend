@@ -36,11 +36,6 @@ app.get("/", (req, res) => {
   res.send("Welcome to the backend API");
 });
 
-// Example API route
-app.get("/api", (req, res) => {
-  res.send("API is running!");
-});
-
 // Middleware for Firebase Auth
 app.use(async (req, res, next) => {
   const { authtoken } = req.headers;
@@ -56,7 +51,75 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Other API routes go here...
+// GET article data
+app.get("/api/articles/:articleId", async (req, res) => {
+  const { articleId } = req.params;
+
+  const article = await db.collection("articles").findOne({ name: articleId });
+
+  if (article) {
+    const canUpvote = req.user ? !article.upvoteIds.includes(req.user.uid) : false;
+    res.json({ ...article, canUpvote });
+  } else {
+    res.sendStatus(404);
+  }
+});
+
+// Upvote article
+app.put("/api/articles/:articleId/upvote", async (req, res) => {
+  const { articleId } = req.params;
+
+  if (!req.user) {
+    return res.sendStatus(401); // Unauthorized if the user is not logged in
+  }
+
+  const article = await db.collection("articles").findOne({ name: articleId });
+
+  if (article) {
+    const upvoteIds = article.upvoteIds || [];
+    const canUpvote = !upvoteIds.includes(req.user.uid);
+
+    if (canUpvote) {
+      await db.collection("articles").updateOne(
+        { name: articleId },
+        {
+          $inc: { upvotes: 1 },
+          $push: { upvoteIds: req.user.uid },
+        }
+      );
+    }
+
+    const updatedArticle = await db
+      .collection("articles")
+      .findOne({ name: articleId });
+
+    res.json(updatedArticle);
+  } else {
+    res.send("Article not found").status(404);
+  }
+});
+
+// Add comment
+app.post("/api/articles/:articleId/comments", async (req, res) => {
+  const { articleId } = req.params;
+  const { text } = req.body;
+  const postedBy = req.user.email;
+
+  await db.collection("articles").updateOne(
+    { name: articleId },
+    {
+      $push: { comments: { postedBy, text } },
+    }
+  );
+
+  const article = await db.collection("articles").findOne({ name: articleId });
+
+  if (article) {
+    res.json(article);
+  } else {
+    res.send("Article not found").status(404);
+  }
+});
 
 // Start the server
 const PORT = process.env.PORT || 8000;
