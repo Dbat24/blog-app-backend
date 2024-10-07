@@ -25,7 +25,7 @@ const app = express();
 // Configure CORS to allow requests from your frontend URL
 const allowedOrigins = [
   "https://blog-app-frontend-eosin.vercel.app", // Your frontend Vercel URL
-  "http://localhost:3000" // Localhost for development
+  // "http://localhost:3000" // Localhost for development
 ];
 
 app.use(cors({ origin: allowedOrigins }));
