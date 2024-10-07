@@ -1,21 +1,15 @@
-import path from "path";
 import admin from "firebase-admin";
 import express from "express";
 import cors from "cors";
-import "dotenv/config"; // Load environment variables
+import "dotenv/config";
 import { db, connectToDb } from "./db.js";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Initialize Firebase Admin SDK using environment variables
 admin.initializeApp({
   credential: admin.credential.cert({
     type: "service_account",
     project_id: process.env.PROJECT_ID,
     private_key_id: process.env.PRIVATE_KEY_ID,
-    private_key: process.env.PRIVATE_KEY.replace(/\\n/g, "\n"), // Handle newline characters
+    private_key: process.env.PRIVATE_KEY.replace(/\\n/g, "\n"),
     client_email: process.env.CLIENT_EMAIL,
     client_id: process.env.CLIENT_ID,
     auth_uri: process.env.AUTH_URI,
@@ -27,19 +21,13 @@ admin.initializeApp({
 
 const app = express();
 
-// Configure CORS to allow requests from your frontend URL
 const allowedOrigins = [
-  "https://blog-app-frontend-eosin.vercel.app", // Add your frontend Vercel URL here
-  "http://localhost:3000" // Localhost for development
+  "https://blog-app-frontend-eosin.vercel.app",
+  "http://localhost:3000",
 ];
 
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "../build")));
-
-app.get(/^(?!\/api).+/, (req, res) => {
-  res.sendFile(path.join(__dirname, "../build/index.html"));
-});
 
 app.use(async (req, res, next) => {
   const { authtoken } = req.headers;
@@ -55,7 +43,10 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Rest of your routes remain unchanged...
+// Example route
+app.get("/api", (req, res) => {
+  res.send("Backend is running!");
+});
 
 const PORT = process.env.PORT || 8000;
 connectToDb(() => {
