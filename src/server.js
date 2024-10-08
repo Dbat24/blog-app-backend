@@ -44,7 +44,7 @@ app.use(async (req, res, next) => {
     try {
       req.user = await admin.auth().verifyIdToken(authtoken);
     } catch (e) {
-      return res.sendStatus(400);
+      return res.status(400).send("Invalid auth token");
     }
   }
   req.user = req.user || {};
@@ -55,13 +55,18 @@ app.use(async (req, res, next) => {
 app.get("/api/articles/:articleId", async (req, res) => {
   const { articleId } = req.params;
 
-  const article = await db.collection("articles").findOne({ name: articleId });
+  try {
+    const article = await db.collection("articles").findOne({ name: articleId });
 
-  if (article) {
-    const canUpvote = req.user ? !article.upvoteIds.includes(req.user.uid) : false;
-    res.json({ ...article, canUpvote });
-  } else {
-    res.sendStatus(404);
+    if (article) {
+      const canUpvote = req.user ? !article.upvoteIds.includes(req.user.uid) : false;
+      res.json({ ...article, canUpvote });
+    } else {
+      res.status(404).send("Article not found");
+    }
+  } catch (error) {
+    console.error("Error fetching article:", error);
+    res.status(500).send("Internal server error");
   }
 });
 
@@ -70,32 +75,34 @@ app.put("/api/articles/:articleId/upvote", async (req, res) => {
   const { articleId } = req.params;
 
   if (!req.user) {
-    return res.sendStatus(401); // Unauthorized if the user is not logged in
+    return res.status(401).send("Unauthorized: User not logged in");
   }
 
-  const article = await db.collection("articles").findOne({ name: articleId });
+  try {
+    const article = await db.collection("articles").findOne({ name: articleId });
 
-  if (article) {
-    const upvoteIds = article.upvoteIds || [];
-    const canUpvote = !upvoteIds.includes(req.user.uid);
+    if (article) {
+      const upvoteIds = article.upvoteIds || [];
+      const canUpvote = !upvoteIds.includes(req.user.uid);
 
-    if (canUpvote) {
-      await db.collection("articles").updateOne(
-        { name: articleId },
-        {
-          $inc: { upvotes: 1 },
-          $push: { upvoteIds: req.user.uid },
-        }
-      );
+      if (canUpvote) {
+        await db.collection("articles").updateOne(
+          { name: articleId },
+          {
+            $inc: { upvotes: 1 },
+            $push: { upvoteIds: req.user.uid },
+          }
+        );
+      }
+
+      const updatedArticle = await db.collection("articles").findOne({ name: articleId });
+      res.json(updatedArticle);
+    } else {
+      res.status(404).send("Article not found");
     }
-
-    const updatedArticle = await db
-      .collection("articles")
-      .findOne({ name: articleId });
-
-    res.json(updatedArticle);
-  } else {
-    res.send("Article not found").status(404);
+  } catch (error) {
+    console.error("Error upvoting article:", error);
+    res.status(500).send("Internal server error");
   }
 });
 
@@ -103,21 +110,29 @@ app.put("/api/articles/:articleId/upvote", async (req, res) => {
 app.post("/api/articles/:articleId/comments", async (req, res) => {
   const { articleId } = req.params;
   const { text } = req.body;
-  const postedBy = req.user.email;
 
-  await db.collection("articles").updateOne(
-    { name: articleId },
-    {
-      $push: { comments: { postedBy, text } },
+  if (!req.user) {
+    return res.status(401).send("Unauthorized: User not logged in");
+  }
+
+  try {
+    await db.collection("articles").updateOne(
+      { name: articleId },
+      {
+        $push: { comments: { postedBy: req.user.email, text } },
+      }
+    );
+
+    const article = await db.collection("articles").findOne({ name: articleId });
+
+    if (article) {
+      res.json(article);
+    } else {
+      res.status(404).send("Article not found");
     }
-  );
-
-  const article = await db.collection("articles").findOne({ name: articleId });
-
-  if (article) {
-    res.json(article);
-  } else {
-    res.send("Article not found").status(404);
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    res.status(500).send("Internal server error");
   }
 });
 
