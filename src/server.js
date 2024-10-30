@@ -22,7 +22,7 @@ admin.initializeApp({
 
 const app = express();
 
-const allowedOrigins = ["http://localhost:3000"];
+const allowedOrigins = ["https://blog-app-frontend-teal-kappa.vercel.app/"];
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
